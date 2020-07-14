@@ -1,10 +1,13 @@
 const mongoose = require('mongoose');
 
+const uniqueVal = require('mongoose-unique-validator');
+
 const PlaceSchema = new mongoose.Schema({
    
     title : {
           type : String,
           trim : true,
+          unique : true,
           required : true
     },
 
@@ -41,6 +44,7 @@ const PlaceSchema = new mongoose.Schema({
      trim : true
     },
 
+    //one place can only belong to one owner
     owner : {
         // type : mongoose.Types.ObjectId,
         // ref : 'User'
@@ -49,5 +53,9 @@ const PlaceSchema = new mongoose.Schema({
     }
 
 });
+
+//now we register unique validation for every unique keyword.
+PlaceSchema.plugin(uniqueVal);
+
 
 module.exports = mongoose.model('Place', PlaceSchema); 

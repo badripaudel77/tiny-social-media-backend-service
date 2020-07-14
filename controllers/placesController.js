@@ -4,58 +4,60 @@ const HttpError = require('../models/HttpError')
 const getCordsByAddress = require('../utils/location')
 const Place = require('../models/Place')
 
-//demo places
-const places = [
-    { 
-        _id : 'p1',
-         title : 'Kathmandu Durbar Square',
-         description : 'A must visit place in Nepal at the heart of KTM', 
-         location : {
-            long: 50.0,
-            lat : -50.0, 
-        },
-        address :'Kathmandu Basantapur',
-        rating : 4.8,
-        owner : 'john'
-    },
-    { 
-        _id : 'p2',
-         title : 'Pashupatinath Temple',
-         description : 'One of the religiously valued hindu temples in world', 
-         location : {
-            long: 51.0,
-            lat : -51.0
-    },
-        address :' Kathmandu Gaushala',
-        rating : 4.5,
-        owner : 'bpvai'
-    }
-]
+//get all places
+const findPlaces = async (req,res, next) => {
+    let allPlaces ;
 
-const findPlaces = (req,res, next) => {
-    res.json( { places : places })
+    try {
+       allPlaces = await Place.find({}); 
+    } 
+    catch (error) {
+        error = new HttpError("something went wrong ", 500);
+        return next(error);
+    }  
+    if(!allPlaces || allPlaces.length ===0) {
+        return next(new HttpError("no places found ", 404));
+    }
+    res.json( { places : allPlaces });
 }
 
-const getPlacesByUserId = (req,res, next) => {
-    const uId = req.params.uId
-    const placesOfUser = places.filter(place => place.owner === uId) //filter returns multiple value if found unlike find returns the first one. 
+const getPlacesByUserId = async (req,res, next) => {
+    const uId = req.params.uId;
+    let placesOfUser;
+
+    try {
+        //place has owner property
+         placesOfUser = await Place.find({ owner : uId}); //find by owner(creator of this post (place))         
+    }
+     catch (error) {
+        return next(new HttpError('something went wrong, try again.', 404));
+    }
 
     if(!placesOfUser || placesOfUser.length ===0) {
       // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
       throw new HttpError('Places with that userId not found',404)
     }
-    res.json({placesOfUser})
+    res.json({places : placesOfUser});
 }
-const getPlaceByPlaceId = (req,res, next) => {
-    const pId = req.params.pId
-    const place = places.find(place => place._id === pId)
-
-    if(!place) {
-      // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
-      throw new HttpError('Place with that place id not found', 404)
+const getPlaceByPlaceId = async (req,res, next) => {
+    const pId = req.params.pId;
+     
+    let place;
+    try {
+        place = await Place.findById(pId);
+       
+        if(!place) {
+            // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
+            throw new HttpError('Place with that place id not found', 404)
+          }
+          else {
+            res.status(201).json({place});
+          }
+     }
+    catch (error) {
+        const e = new HttpError("something went wrong, couldn't find place. ", 500);
+        return next(e);
     }
-
-    res.json({place})
 }
 
 //make it async if u use real address to cords function because that fun now uses async http req 
@@ -69,14 +71,6 @@ const createNewPlace =  async (req,res, next) => {
     catch (error) {
        return next(error); 
     }
-    // const newPlace = {
-    //     _id : uuid(),
-    //     title,
-    //     description,
-    //     location : coords ,
-    //     rating,
-    //     owner
-    // }
 
     const newPlace = new Place({
         title,
@@ -99,41 +93,56 @@ const createNewPlace =  async (req,res, next) => {
     res.status(200).json({newPlace});
 };
 
-const updatePlaceByPlaceId =(req,res, next) => {
-    const pId = req.params.pId
-    const place = places.find(place => place._id === pId)
+const updatePlaceByPlaceId =async (req,res, next) => {
+    const pId = req.params.pId;
+    let place ;
+    
+    try {
+       place =  await Place.findById(pId);
+    } 
+    catch (error) {
+        return next(new HttpError('Place with that place id not found', 404));
+    }
 
-    if(!place) {
-       return res.status(404).json({placeNotFound : 'Place with that userId not found'})
+    if(!place || place.length ===0) {
+       return res.status(404).json({placeNotFound : 'Place with that place id not found'})
       //next(error)
     }
-    const { title, description, location, rating, owner } = req.body;
-     
-    const index = places.findIndex(place => place._id === pId)
-    const updatedPlace = {
-        _id : pId, //set same Id as before, Id is not to be updated
-        title,
-        description,
-        location ,
-        rating,
-        owner
-    };
-    places[index] = updatedPlace;
+    const { title, description, rating } = req.body;
+    
+    place.title = title;
+    place.description = description;
+    place.rating = rating;
 
-    res.status(200).json({updatedPlace});
+    try {
+        place.save();
+    } 
+    catch (error) {
+        return next(new HttpError("couldn't update the place. ", 500));
+    }
+    res.status(200).json({place});
 };
 
-const deletePlaceByPlaceId =(req,res, next) => {
-    const pId = req.params.pId
-    const place = places.find(place => place._id === pId)
+const deletePlaceByPlaceId = async (req,res, next) => {
+    const pId = req.params.pId;
+    let place;
 
-    if(!place) {
-      // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
-      throw new HttpError('Place with that place Id not found.' , 404)
+    try {
+         place = await Place.findById(pId);
+         if(!place) {
+            // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
+            throw new HttpError('Place with that place Id not found.' , 404);
+          }
+
+          else {
+              await place.remove();
+             return res.status(200).json({place});
+          }
+    } 
+    catch (error) {
+        return next(new HttpError('something went wrong, place id not found', 404));     
     }
-    const newPlaces = places.filter(place => place._id !== pId)
-    //returning remaining places
-    res.status(200).json({places : newPlaces})
+    //returning deleted place
 }
 
 module.exports = {
