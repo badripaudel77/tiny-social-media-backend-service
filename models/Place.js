@@ -46,9 +46,8 @@ const PlaceSchema = new mongoose.Schema({
 
     //one place can only belong to one owner
     owner : {
-        // type : mongoose.Types.ObjectId,
-        // ref : 'User'
-        type : String,
+        type : mongoose.Types.ObjectId,
+        ref : 'User',
         required : true
     }
 

@@ -28,11 +28,12 @@ const UserSchema = new mongoose.Schema({
         type : String,
         required : true
     },
-    //one user can have multiple places
-    places : {
-        type : String,
+    //one user can have multiple places so []
+    places : [{
+        type : mongoose.Types.ObjectId,
+        ref : 'Place',
         required : true
-    }
+    }]
 });
 
 //now we register unique validation for every unique keyword.

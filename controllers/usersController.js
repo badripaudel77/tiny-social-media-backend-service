@@ -4,31 +4,42 @@ const bcrypt = require('bcryptjs');
 const HttpError = require('../models/HttpError');
 const User = require('../models/User');
 
-const users = [
-    { _id : 'u1', username : 'bpvai', password : 'badri123'},
-    { _id : 'u2', username : 'john', password : 'john123'},
-    { _id : 'u3', username : 'smith', password : 'smith123'}
-]
+const getUsers = async (req, res, next) => {
+    let users;
 
-const getUsers = (req, res, next) => {
-    res.json({users : users })
-}
-
-const getUserByUserId = (req, res, next) => {
-    const userId = req.params.userId
-    const user = users.find(user => user._id === userId)
-    if(!user) {
-       // return res.status(404).json({userNotFound : 'User with given Id not found'})
-       throw new HttpError('User with that userId not found',404)
-
+    try {
+       users = await User.find({});
     }
-   // res.send(`uid : ${userId}`)
-    res.json({user})
+     catch (error) {
+        return next(new HttpError("something went wrong while getting users.", 500));
+    }
+    return res.status(201).json({users });
 }
+
+const getUserByUserId = async (req,res, next) => {
+    const userId = req.params.userId;
+    let user;
+    try {
+        user = await User.findById(userId);
+       
+        if(!user) {
+            // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
+            throw new HttpError('User with that user id not found', 404);
+          }
+          else {
+            res.status(201).json({user});
+          }
+     }
+    catch (error) {
+        const e = new HttpError("something went wrong, couldn't find user. ", 500);
+        return next(e);
+    }
+}
+
 
 const userSignup = async (req, res, next ) => {
      
-    const { name, email , password, places } = req.body;
+    const { name, email , password } = req.body;
     
     let doesUserExist;
     try {
@@ -45,7 +56,7 @@ const userSignup = async (req, res, next ) => {
             email,
             password : hashedPassword,
             image : 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Uniform_Resource_Locator.svg/220px-Uniform_Resource_Locator.svg.png',
-            places
+            places : []
         });
         try {
             await newUser.save();
@@ -89,11 +100,25 @@ const userLogin = async (req, res, next )  => {
 }
 
 //can be considered as deleting user account by himself or herself
-const deleteUser = (req, res, next ) => {
-  
-    res.json({message : 'your account deleted ...'})
-}
+const deleteUser = async (req,res, next) => {
+    const userId = req.params.userId;
+    let user;
 
+    try {
+         user = await User.findById(userId);
+         if(!user) {
+            // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
+            return next(new HttpError('User with that user Id not found.' , 404));
+          }
+          else {
+              await user.remove();
+              return res.status(200).json({message : "Sorry to see you go, but your account " + user.email + " deleted successfully."});
+          }
+    } 
+    catch (error) {
+        return next(new HttpError('something went wrong, user id not found', 404));     
+    }
+}
 
 //export like a bundle, now can access using one name. ....
 exports.getUsers = getUsers
