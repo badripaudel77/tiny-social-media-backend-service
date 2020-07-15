@@ -1,8 +1,10 @@
-const uuid = require('uuid').v4
+const uuid = require('uuid').v4;
 
-const HttpError = require('../models/HttpError')
-const getCordsByAddress = require('../utils/location')
-const Place = require('../models/Place')
+const HttpError = require('../models/HttpError');
+const getCordsByAddress = require('../utils/location');
+const Place = require('../models/Place');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 
 //get all places
 const findPlaces = async (req,res, next) => {
@@ -62,8 +64,7 @@ const getPlaceByPlaceId = async (req,res, next) => {
 
 //make it async if u use real address to cords function because that fun now uses async http req 
 const createNewPlace =  async (req,res, next) => {
-    const { title, description,address, image , rating, owner } = req.body;
-
+    const { title, description,address , rating, owner } = req.body;
     let coords
     try {
         coords = getCordsByAddress(address);     
@@ -71,7 +72,6 @@ const createNewPlace =  async (req,res, next) => {
     catch (error) {
        return next(error); 
     }
-
     const newPlace = new Place({
         title,
         description,
@@ -81,16 +81,39 @@ const createNewPlace =  async (req,res, next) => {
         rating,
         owner
     });
-    
+    //before saving  check if the user who adds the place exists or not
+    let user;
     try {
+            user = await User.findById(owner);
+            console.log("user", user); //yes exists ....
+            //see if user not found
+            if(!user)  return res.status(404).json({ message : "User not found. "});
+        } 
+       catch (error) {
+           return next(new HttpError('something went wrong, user not found', 500));
+    }
+    try {
+        console.log("running ?", mongoose.version) //yes
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        console.log("check")//no
         await newPlace.save();
+        console.log("checked")  //no
+        //place is added to user via its id
+        user.places.push(newPlace); //user has places property
+        console.log("pushed")
+        await user.save(session);
+         console.log("done ? ");
+        //if all line above successfully executed, it will work or undo all changes to the database.
+        await session.commitTransaction();
+        console.log("done ,yes");
+
     } 
     catch (error) {        
-       const err = new HttpError("couldn't create place, ", 500);
+       const err = new HttpError("something went wrong, couldn't create place, ", 500);
        return next(err);
     }
-   // places.push(newPlace)
-    res.status(200).json({newPlace});
+    return res.status(200).json({newPlace});
 };
 
 const updatePlaceByPlaceId =async (req,res, next) => {
@@ -128,14 +151,20 @@ const deletePlaceByPlaceId = async (req,res, next) => {
     let place;
 
     try {
-         place = await Place.findById(pId);
+        //  place = await Place.findById(pId);
+        place = await Place.findById(pId).populate('owner');
          if(!place) {
             // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
             throw new HttpError('Place with that place Id not found.' , 404);
           }
-
           else {
-              await place.remove();
+              const session = await mongoose.startSession();
+              session.startTransaction();
+              await place.remove(session); 
+              place.owner.places.pull(place); //automatically removes id of this place from  owner.
+              place.owner.save(session);
+              await session.commitTransaction();
+
              return res.status(200).json({place});
           }
     } 

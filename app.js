@@ -31,8 +31,7 @@ app.use((error, req, res, next) => {
         if(res.headerSent) {
             return next(error)
         }
-        res.status(error.errorCode || 500)
-    res.json({msg : error.message || 'Error occured '})
+        return res.status(error.errorCode || 500).json({msg : error.message || 'Error occured '})
     }) 
 
 const PORT = 5000 || process.env.PORT
