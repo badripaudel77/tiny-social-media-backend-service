@@ -21,6 +21,7 @@
     "express": "^4.17.1",
     "mongoose": "^5.9.24",
     "mongoose-unique-validator": "^2.0.3",
+    "nodemailer": "^6.4.10",
     "uuid": "^8.2.0",
     "uuidv4": "^6.1.1"
   }

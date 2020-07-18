@@ -28,6 +28,13 @@ const UserSchema = new mongoose.Schema({
         type : String,
         required : true
     },
+    activated : {
+         type : Boolean,
+         default : false
+    },
+    token : {
+       type : String
+        },
     //one user can have multiple places so []
     places : [{
         type : mongoose.Types.ObjectId,

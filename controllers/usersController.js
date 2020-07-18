@@ -1,8 +1,15 @@
 const uuid = require('uuid').v4;
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
 
 const HttpError = require('../models/HttpError');
 const User = require('../models/User');
+
+//load the config file
+dotenv.config({path: './config/config.env' });
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED='0'; //just a hack for email sending ..
 
 const getUsers = async (req, res, next) => {
     let users;
@@ -38,8 +45,8 @@ const getUserByUserId = async (req,res, next) => {
 
 
 const userSignup = async (req, res, next ) => {
-     
     const { name, email , password } = req.body;
+    const token = generateToken(); //generates token
     
     let doesUserExist;
     try {
@@ -51,19 +58,24 @@ const userSignup = async (req, res, next ) => {
            //hash the password
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(req.body.password, salt);
-        const newUser = new User({
+            const newUser = new User({
             name,
             email,
             password : hashedPassword,
+            token ,
             image : 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Uniform_Resource_Locator.svg/220px-Uniform_Resource_Locator.svg.png',
             places : []
         });
         try {
             await newUser.save();
-        } catch (error) {
+           // console.log("user saved" , newUser);
+           sendEmail(email, token);
+           console.log("email sent");
+        } 
+        catch (error) {
             return next(new HttpError("couldn't signup the user." , 500));
         }
-        res.status(200).json({message : 'user created', newUser})
+        return res.status(200).json({message : 'user created', newUser})
       }
     } 
     catch (error) {
@@ -71,17 +83,25 @@ const userSignup = async (req, res, next ) => {
     }
 }
 
+
 const userLogin = async (req, res, next )  => {
      const { email , password} = req.body; 
+    // console.log(req.body);
+
      let userWithGivenEmail;
     try {
           //check to see if the email already exists in database
            userWithGivenEmail = await User.findOne({email : email });
-             //console.log("try block " + doesEmailExist) //yes
+           console.log("try block " + userWithGivenEmail) //yes
         
             if(!userWithGivenEmail) {
                  return next(new HttpError("email doesn't exist.", 400));
-         }
+            }
+
+            if(userWithGivenEmail && !userWithGivenEmail.activated) {
+                return next(new HttpError(`Please activate your account by verifying your link sent to your email ${userWithGivenEmail.email}`));
+            }
+
          else {
              //if email exits in database then check passowrd
                const userPassword = await bcrypt.compare(password, userWithGivenEmail.password);
@@ -120,9 +140,77 @@ const deleteUser = async (req,res, next) => {
     }
 }
 
+const generateToken = () => {
+    const token = uuid();
+    console.log("token generated "  + token);
+    return token;
+}
+
+const sendEmail = (email, token) => {
+
+    const email_user = process.env.email_user;
+    const email_pass = process.env.email_pass;
+    const service = process.env.email_service;
+    const to_email = email;
+
+    const redirect_URL = `http://localhost:5000/api/users/actvt/${token}`;
+   //details about service provider [like gmail ] and email details [username and password]
+  var transporter = nodemailer.createTransport({
+  service: service,
+  auth: {
+    user: email_user,
+    pass: email_pass
+  }
+});
+ 
+//mail id
+var mailOptions = {
+  from: email_user,
+  to: to_email,
+  subject: 'Activate Account',
+  text: 'Social Share ',
+  html: `<h1><a href=${redirect_URL}>activate the account by clicking this link.</a></p>`
+};
+//send mail
+transporter.sendMail(mailOptions, function(error, info){
+  if (error) {
+     return next(new HttpError("email couldn't be sent, something went wrong.", 500));
+  } else {
+    console.log('Email sent: ' + info.response);
+  }
+});
+}
+
+const verifyAccount = async (req, res, next) => {
+    const token = req.params.token;
+    let isMatched = false;
+
+    const user = await User.findOne({ token : token});
+
+    if(!user) {
+        return next(new HttpError('Invalid URL [!not user ]', 401)); //bad access / request...
+    }
+     isMatched = user.token === token;
+    
+    if(!isMatched) {
+        return next(new HttpError(' Invalid url [!token] .', 401)); //bad access / request...
+    }
+
+    user.activated = true;
+    user.token = '';
+    try {
+        await user.save(); //then update the user.
+    } 
+    catch (error) {
+       return next(new HttpError("couldn't update credentials", 500));
+    }
+    return res.status(200).json({ activated : true, message : ' Account has been activated successfully.'}); 
+}
+
 //export like a bundle, now can access using one name. ....
-exports.getUsers = getUsers
-exports.getUserByUserId = getUserByUserId
-exports.userSignup = userSignup
-exports.userLogin = userLogin
-exports.deleteUser = deleteUser
+exports.getUsers = getUsers;
+exports.getUserByUserId = getUserByUserId;
+exports.userSignup = userSignup;
+exports.userLogin = userLogin;
+exports.deleteUser = deleteUser;
+exports.verifyAccount = verifyAccount;
