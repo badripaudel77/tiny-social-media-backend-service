@@ -22,5 +22,4 @@ const jwt = require('jsonwebtoken');
         return next(new HttpError('Authentication failed.', 401));
     }
 }
-
 module.exports = authenticateUser;

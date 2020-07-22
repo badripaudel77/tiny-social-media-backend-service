@@ -131,6 +131,12 @@ const updatePlaceByPlaceId =async (req,res, next) => {
        return res.status(404).json({placeNotFound : 'Place with that place id not found'})
       //next(error)
     }
+
+    //if this is the post that hasn't been created by the same user, he/she can't update it.
+    if(place.owner != req.user.userId) {
+        //console.log( place.owner == req.user.userId);
+        return next(new HttpError('Place with that place id is not associated with you[cannot upadate]', 401));
+    }
     const { title, description, rating } = req.body;
     
     place.title = title;
@@ -149,14 +155,19 @@ const updatePlaceByPlaceId =async (req,res, next) => {
 const deletePlaceByPlaceId = async (req,res, next) => {
     const pId = req.params.pId;
     let place;
-
     try {
         //  place = await Place.findById(pId);
         place = await Place.findById(pId).populate('owner');
-         if(!place) {
+         
+        if(!place) {
             // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
             throw new HttpError('Place with that place Id not found.' , 404);
           }
+            //if this is the post that hasn't been created by the same user, he/she can't update it.
+           if(place.owner._id != req.user.userId) {
+          //console.log( place.owner == req.user.userId);
+          return next(new HttpError('Place with that place id is not associated with you [cannot delete ]', 401));
+        }
           else {
               const session = await mongoose.startSession();
               session.startTransaction();
