@@ -2,6 +2,7 @@ const uuid = require('uuid').v4;
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
+const jwt = require('jsonwebtoken');
 
 const HttpError = require('../models/HttpError');
 const User = require('../models/User');
@@ -46,8 +47,10 @@ const getUserByUserId = async (req,res, next) => {
 
 const userSignup = async (req, res, next ) => {
     const { name, email , password } = req.body;
-    const token = generateToken(); //generates token
+    const verifyToken = generateToken(); //generates token
     
+    let token;
+
     let doesUserExist;
     try {
       doesUserExist  = await User.findOne({ email : email });
@@ -58,24 +61,31 @@ const userSignup = async (req, res, next ) => {
            //hash the password
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(req.body.password, salt);
+
             const newUser = new User({
             name,
             email,
             password : hashedPassword,
-            token ,
+            token : verifyToken,
             image : 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Uniform_Resource_Locator.svg/220px-Uniform_Resource_Locator.svg.png',
             places : []
         });
         try {
             await newUser.save();
            // console.log("user saved" , newUser);
-           sendEmail(email, token);
-           console.log("email sent");
+           sendEmail(email, verifyToken);
+           console.log("email sent");    
+           //user saved and email sent so now can generate token 
+           token = jwt.sign({userId : newUser._id, email : newUser.email},
+                  process.env.token_secret,
+                 {expiresIn : '1h'});
         } 
         catch (error) {
             return next(new HttpError("couldn't signup the user." , 500));
         }
-        return res.status(200).json({message : 'user created', newUser})
+        return res.status(200).json({message : 'user created',
+        _id : newUser._id, email : newUser.email, 
+        token});
       }
     } 
     catch (error) {
@@ -91,26 +101,35 @@ const userLogin = async (req, res, next )  => {
      let userWithGivenEmail;
     try {
           //check to see if the email already exists in database
-           userWithGivenEmail = await User.findOne({email : email });
-           console.log("try block " + userWithGivenEmail) //yes
-        
+           userWithGivenEmail = await User.findOne({email : email });        
             if(!userWithGivenEmail) {
                  return next(new HttpError("email doesn't exist.", 400));
             }
-
-            if(userWithGivenEmail && !userWithGivenEmail.activated) {
+           else if(userWithGivenEmail && !userWithGivenEmail.activated) {
                 return next(new HttpError(`Please activate your account by verifying your link sent to your email ${userWithGivenEmail.email}`));
             }
-
          else {
              //if email exits in database then check passowrd
                const userPassword = await bcrypt.compare(password, userWithGivenEmail.password);
-    
                 if(!userPassword) {
                     return next(new HttpError("password didn't match. ", 500));
                 }
                 else {
-                    return res.status(200).json({message :"User with username or email " + userWithGivenEmail.email+ "has logged in."})
+                    try {     
+                        let token ;
+                        token = jwt.sign({userId : userWithGivenEmail._id, email : userWithGivenEmail.email},
+                             process.env.token_secret,
+                             {expiresIn : '1h'});
+                             res.header('authorization');
+                             //return 
+                             return res.status(200).json({message : userWithGivenEmail.email+ " has logged in.", 
+                             _id : userWithGivenEmail._id, email : userWithGivenEmail.email, 
+                              token 
+                            });
+                        }
+                        catch (error) {
+                            return next(new HttpError("couldn't signin the user[gen of token failed]" , 500));
+                    }
                 }
          }
     } 
@@ -142,7 +161,7 @@ const deleteUser = async (req,res, next) => {
 
 const generateToken = () => {
     const token = uuid();
-    console.log("token generated "  + token);
+    console.log("token generated "  + token); //inspect the console
     return token;
 }
 
@@ -174,7 +193,7 @@ var mailOptions = {
 //send mail
 transporter.sendMail(mailOptions, function(error, info){
   if (error) {
-     return next(new HttpError("email couldn't be sent, something went wrong.", 500));
+     return new HttpError("email couldn't be sent, something went wrong.", 500);
   } else {
     console.log('Email sent: ' + info.response);
   }
