@@ -149,6 +149,12 @@ const deleteUser = async (req,res, next) => {
             // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
             return next(new HttpError('User with that user Id not found.' , 404));
           }
+         // console.log(user._id.toString() === req.user.userId);
+          
+         if(user._id.toString() !== req.user.userId) {
+            return next(new HttpError("Not authorized / You can't delete someone else's account.", 401));
+          }
+
           else {
               await user.remove();
               return res.status(200).json({message : "Sorry to see you go, but your account " + user.email + " deleted successfully."});
