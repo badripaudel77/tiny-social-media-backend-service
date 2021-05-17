@@ -1,6 +1,9 @@
 # socila_share
 ------------------------
 
+### screenshot
+![ScreenShot](https://badripaudel.netlify.app/images/social_share.PNG)
+
 Backend for social share app. 
 
 Developed using technologies like Node.js, Express JS, MongoDB.
