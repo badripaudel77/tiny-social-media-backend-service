@@ -1,7 +1,7 @@
 const HttpError = require('../models/HttpError');
 const jwt = require('jsonwebtoken');
 
-//authenticate middleware function
+//authenticate middleware function to verify whether the user is genuine or not.
  const authenticateUser = (req, res, next) => {
 
     if(req.method === 'OPTIONS') {
@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
     }
 
     try { 
-       //extract token from the header    
+       //extract token from the header   Bearer Token_value 
         const token = req.headers.authorization.split(' ')[1]; 
         if(!token){
             return new Error('no token present / auth failed. ', 401);

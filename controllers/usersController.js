@@ -31,7 +31,6 @@ const getUserByUserId = async (req,res, next) => {
         user = await User.findById(userId);
        
         if(!user) {
-            // return res.status(404).json({placeNotFound : 'Place with that userId not found'})
             throw new HttpError('User with that user id not found', 404);
           }
           else {
@@ -72,7 +71,6 @@ const userSignup = async (req, res, next ) => {
         });
         try {
             await newUser.save();
-           // console.log("user saved" , newUser);
            sendEmail(email, verifyToken);
            console.log("email sent");    
            //user saved and email sent so now can generate token 
@@ -167,7 +165,6 @@ const deleteUser = async (req,res, next) => {
 
 const generateToken = () => {
     const token = uuid();
-    console.log("token generated "  + token); //inspect the console
     return token;
 }
 

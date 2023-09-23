@@ -11,7 +11,7 @@ router.post('/signup', userSignup);
 router.post('/login', userLogin);
 router.get('/actvt/:token', verifyAccount);
 
-router.use(authenticateUser); //middleware, it will execute downward..... 
+router.use(authenticateUser); //middleware, it will be executed downward. 
 router.delete('/:userId', deleteUser);
 
 module.exports = router;

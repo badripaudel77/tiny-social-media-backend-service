@@ -41,4 +41,4 @@ const getCordsByAddress = async (address) => {
     return cords;
 }
 */
-module.exports = getCordsByAddress
+module.exports = getCordsByAddress;

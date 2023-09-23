@@ -22,7 +22,7 @@ app.use("/api/", indexRoutes)
 //add error for the unsupported routes , if not any of the above
 app.use((req, res, next) => {
      const error = new HttpError('No route found ', 404)
-     throw error //for async we must use it, for sync we can also use throw error;s
+     throw error //for async, we must use it, for sync we can also use throw errors
 })
 
 //express default handler , especial middleware for error handling with four args, place below app.use(routes)

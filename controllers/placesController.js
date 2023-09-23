@@ -87,27 +87,22 @@ const createNewPlace =  async (req,res, next) => {
             user = await User.findById(owner);
             console.log("user", user); //yes exists ....
             //see if user not found
-            if(!user)  return res.status(404).json({ message : "User not found. "});
+        if (!user) {
+            return res.status(404).json({ message: "User not found. " });
+          }
         } 
        catch (error) {
            return next(new HttpError('something went wrong, user not found', 500));
     }
     try {
-        console.log("running ?", mongoose.version) //yes
         const session = await mongoose.startSession();
         session.startTransaction();
-        console.log("check")//no
         await newPlace.save();
-        console.log("checked")  //no
         //place is added to user via its id
         user.places.push(newPlace); //user has places property
-        console.log("pushed")
         await user.save(session);
-         console.log("done ? ");
         //if all line above successfully executed, it will work or undo all changes to the database.
         await session.commitTransaction();
-        console.log("done ,yes");
-
     } 
     catch (error) {        
        const err = new HttpError("something went wrong, couldn't create place, ", 500);
@@ -182,7 +177,6 @@ const deletePlaceByPlaceId = async (req,res, next) => {
     catch (error) {
         return next(new HttpError('something went wrong, place id not found', 404));     
     }
-    //returning deleted place
 }
 
 module.exports = {

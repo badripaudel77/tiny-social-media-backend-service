@@ -10,7 +10,7 @@ router.get('/', findPlaces);
 router.get('/user/:uId', getPlacesByUserId )
 router.get('/:pId', getPlaceByPlaceId)
 
-router.use(authenticateUser); //middleware, it will execute downward..... 
+router.use(authenticateUser); //middleware, it will be executed downward 
 
 //protect this
 router.post('/', createNewPlace)
